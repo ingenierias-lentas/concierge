@@ -62,7 +62,7 @@ exports.deleteCommand = async (req, res) => {
   console.log('Processing func -> Delete command');
 
   try {
-    let rpid = await commonQueries.getRpid(req.body.processName);
+    let rpid = await commonQueries.getRpid(req.body.processname);
     
     // Delete all entries from registered_process_permissions table
     let query1 = {
@@ -100,7 +100,6 @@ exports.deleteCommand = async (req, res) => {
   }
 }
 
-//TODO add child id to running_processes database
 exports.runCommand = async (req, res) => {
   console.log('Processing func -> Run command');
 
@@ -108,17 +107,17 @@ exports.runCommand = async (req, res) => {
     let query1 = {
       text:
         `
-        SELECT rp.run_command
+        SELECT rp.run_command rp.rpid
         FROM ${tables.registered_processes} rp
         WHERE r.name = $1
         `,
       values:
         [
-          req.body.processName
+          req.body.processname
         ]
     };
     let res1 = await db.query(query1);
-    const child = exec(res1.row[0].runCommand,
+    const child = exec(res1.rows[0].runCommand,
       (err, stdout, stderr) => {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
@@ -128,6 +127,26 @@ exports.runCommand = async (req, res) => {
         }
     })
     console.log(child);
+
+    let runnerUid = commonQueries.getUid(req.body.username);
+    let gid = commonQueries.getGid(req.body.groupname);
+    let query2 = {
+      text:
+        `
+        INSERT INTO ${tables.running_processes} p
+          (name, pid, runner_uid, gid, rpid)
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+      values:
+        [
+          req.body.runningProcessname
+          child.pid,
+          runnerUid,
+          gid,
+          res1.rows[0].rpid,
+        ]
+    }
+    let res2 = await db.query(query2);
 
     res.status(200).json({
       "description": "Command run successfully"
@@ -151,11 +170,11 @@ exports.killCommand = async (req, res) => {
         `,
       values:
         [
-          req.body.processName
+          req.body.processname
         ]
     };
     let res1 = await db.query(query1);
-    const child = exec(res1.row[0].killCommand,
+    const child = exec(res1.rows[0].killCommand,
       (err, stdout, stderr) => {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
@@ -164,6 +183,20 @@ exports.killCommand = async (req, res) => {
           res.status(500).send("Error executing kill command -> " + err);
         }
     })
+    
+    let pid = commonQueries.getPid(req.body.runningProcessname);
+    let query2 = {
+      text:
+        `
+        DELETE FROM ${tables.running_processes}
+        WHERE ${tables.running_processes}.name = $1
+        `,
+      values:
+        [
+          pid
+        ]
+    }
+    let res2 = await db.query(query2);
 
     res.status(200).json({
       "description": "Command killed successfully"

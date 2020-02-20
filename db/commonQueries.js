@@ -76,6 +76,24 @@ const getRpid = async(processname) => {
   return res.rows[0].rpid;
 }
 
+const getPid = async(runningProcessname) => {
+  let query = {
+    text:
+      `
+      SELECT p.pid
+      FROM ${tables.running_processes} p
+      WHERE p.name = $1
+      `,
+    values:
+      [
+        runningProcessname
+      ]
+  };
+  let res = await db.query(query);
+
+  return res.rows[0].rpid;
+}
+
 const isInGroup = async (username, groupname) => {
   let uid = await getUid(username);
   let gid = await getGid(groupname);
@@ -159,6 +177,7 @@ module.exports = {
   getGid : getGid,
   getRid : getRid,
   getRpid : getRpid,
+  getPid : getPid,
   isInGroup : isInGroup,
   isRole : isRole,
   hasPermission : hasPermission,

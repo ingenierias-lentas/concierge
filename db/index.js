@@ -410,6 +410,7 @@ const seeds = {
       await db.query(
         `
         CREATE TABLE IF NOT EXISTS ${tables.running_processes} (
+          name VARCHAR(255) UNIQUE,
           pid BIGINT NOT NULL,
           runner_uid SERIAL NOT NULL,
           gid SERIAL NOT NULL,
